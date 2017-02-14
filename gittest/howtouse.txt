@@ -1,0 +1,34 @@
+ssh-keygen -t rsa -C "r.mikan@tvisioninsights.com"
+->githubに接続するためのキーを作る
+
+more tvi_git_mikan.pub
+->ここに書いてあるssh~~をすbてgithub>settings>ssh>キーのところに入れる
+
+emacs -nw config
+->config(sshの)に、hostとか書いてあるやつを書き込む
+# TVI_githubアカウント
+Host github_tvi
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/tvi_git_mikan
+  TCPKeepAlive yes
+  IdentitiesOnly yes
+
+git clone git@github_tvi:mikantvi/tool.git
+->githubにあるtoolというリポジトリを持ってくる？
+
+cd tool
+
+emacs -nw test.py
+->test.pyは適当に作ったファイル
+
+git add --all
+->作成したら、add
+
+git commit -m "first"
+->addしたらcommit,-mでメッセージをつけられる
+
+git push origin master
+->pushしてmasterのバージョンに反映(バージョンアップ)
+
+
