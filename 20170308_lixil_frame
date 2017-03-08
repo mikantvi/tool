@@ -1,0 +1,104 @@
+BEGIN TRANSACTION;
+CREATE TABLE prj_lixil
+(
+   segment    varchar(256),
+   channel    varchar(256),
+   dow        varchar(256),
+   hh         varchar(256),
+   hh_reach   INTEGER,
+   pw         float8,
+   pv         float8,
+   w          float8,
+   v          float8,
+   e          float8,
+   vi         numeric(13,11),
+   ai         numeric(13,11),
+   base_vi    numeric(13,11),
+   base_ai    numeric(13,11)
+);
+
+--prjデータを取り込む NULL(エクセルで開くと空文字)を空文字に変える
+BEGIN TRANSACTION;
+COPY prj_lixil
+FROM '/Users/ryotaromikan/Desktop/interface_heatmap_raw_utf8.csv' WITH CSV DELIMITER ','  NULL AS ''
+;
+
+BEGIN TRANSACTION;
+CREATE TABLE airframe
+(
+   frame    varchar(32),
+   dow      varchar(32),
+   hh       varchar(32)
+)
+;
+
+--prjデータを取り込む NULL(エクセルで開くと空文字)を空文字に変える
+BEGIN TRANSACTION;
+COPY airframe
+FROM '/Users/ryotaromikan/Desktop/airframe_utf8.tsv' WITH CSV DELIMITER E'\t'  NULL AS ''
+;
+
+--絵柄ごとのVIAI
+SELECT s.frame
+       ,s.channel
+       ,s.segment
+       ,s.w/s.pw AS wr
+       ,s.v/s.pv AS vr
+       ,(s.v/s.pv)/(s.w/s.pw)/s.base_vi AS vi
+       ,(s.e/s.v)/s.base_ai AS ai
+  FROM ( SELECT t2.frame
+                ,t1.channel
+                ,t1.segment
+                ,SUM(t1.pw) AS pw
+                ,SUM(t1.pv) AS pv
+                ,SUM(t1.w) AS w
+                ,SUM(t1.v) AS v
+                ,SUM(t1.e) AS e
+                ,MIN(t1.base_vi) AS base_vi
+                ,MIN(t1.base_ai) AS base_ai
+          FROM prj_lixil t1
+          LEFT JOIN airframe t2
+            ON t1.dow = t2.dow AND t1.hh = t2.hh
+         GROUP BY t2.frame
+                  ,t1.channel
+                  ,t1.segment
+       ) s
+ ORDER BY s.frame
+          ,s.channel
+          ,s.segment
+ -- LIMIT 10
+;
+
+--csvで出力
+BEGIN TRANSACTION;
+
+COPY ( SELECT s.frame
+              ,s.channel
+              ,s.segment
+            --   ,s.w/s.pw AS wr
+            --   ,s.v/s.pv AS vr
+              ,(s.v/s.pv)/(s.w/s.pw)/s.base_vi AS vi
+              ,(s.e/s.v)/s.base_ai AS ai
+         FROM ( SELECT t2.frame
+                       ,t1.channel
+                       ,t1.segment
+                       ,SUM(t1.pw) AS pw
+                       ,SUM(t1.pv) AS pv
+                       ,SUM(t1.w) AS w
+                       ,SUM(t1.v) AS v
+                       ,SUM(t1.e) AS e
+                       ,MIN(t1.base_vi) AS base_vi
+                       ,MIN(t1.base_ai) AS base_ai
+                  FROM prj_lixil t1
+                  LEFT JOIN airframe t2
+                    ON t1.dow = t2.dow AND t1.hh = t2.hh
+                 GROUP BY t2.frame
+                          ,t1.channel
+                          ,t1.segment
+              ) s
+        ORDER BY s.frame
+                 ,s.channel
+                 ,s.segment
+     )
+TO '/Users/ryotaromikan/Desktop/20170309_lixil_percostmodel.tsv' WITH CSV DELIMITER E'\t'  NULL AS '' HEADER
+;
